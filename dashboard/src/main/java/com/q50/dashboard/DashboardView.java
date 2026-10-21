@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -77,6 +78,18 @@ final class DashboardView extends View {
     private static final float[] TIRE_Y = {410f, 410f, 454f, 454f};
     private static final char[] NO_DATA = {'-', '-'};
     private static final long RESET_HOLD_MS = 800L;
+    // Everything the ring frame repaints: ring, peak marker, shift lights, RPM and MAX texts.
+    private static final float RING_DIRTY_R = 146f;
+    // Title corner: hold to show the draw stats; while shown, tap to switch the smooth ring.
+    private static final float TITLE_LEFT = 600f;
+    private static final float TITLE_BOTTOM = 60f;
+    private static final long NS_PER_MS = 1000000L;
+    private static final long STATS_WINDOW_NS = 1000L * NS_PER_MS;
+    private static final char[] STATS_HZ = " Hz  ".toCharArray();
+    private static final char[] STATS_MS = " ms  max ".toCharArray();
+    private static final char[] STATS_GAP = " ms  gap ".toCharArray();
+    private static final char[] STATS_RING = " ms  ring ".toCharArray();
+    private static final char[] STATS_HZ_END = " Hz".toCharArray();
 
     private final DashModel model;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -113,7 +126,28 @@ final class DashboardView extends View {
     private final char[] maxPrefix;
     private final char[] est;
     private boolean holdingRing;
+    private boolean holdingTitle;
     private long downTime;
+
+    // The ring sweeps linearly from the shown value to each new sample over one refresh
+    // period, so it trails the data by up to 250 ms. Texts always show the real sample.
+    private boolean smoothRing = true;
+    private boolean ringShown;
+    private float ringFrom;
+    private float ringTo;
+    private long ringStart;
+    private int ringLeft, ringTop, ringRight, ringBottom;
+
+    // Draw stats, measured in RAM only and shown at most once per second.
+    private boolean showStats;
+    private long statsStartNs;
+    private long lastDrawNs;
+    private int statsFrames;
+    private long statsSumNs;
+    private long statsMaxNs;
+    private long statsMaxGapNs;
+    private final char[] stats = new char[80];
+    private int statsLength;
 
     DashboardView(Context context, DashModel model) {
         super(context);
@@ -210,6 +244,10 @@ final class DashboardView extends View {
         offsetX = (w - REF_W * scale) / 2f;
         offsetY = (h - REF_H * scale) / 2f;
         // Opaque flat colors: RGB565 halves memory and copy cost versus ARGB8888.
+        ringLeft = (int) Math.floor(offsetX + (RING_CX - RING_DIRTY_R) * scale);
+        ringTop = (int) Math.floor(offsetY + (RING_CY - RING_DIRTY_R) * scale);
+        ringRight = (int) Math.ceil(offsetX + (RING_CX + RING_DIRTY_R) * scale);
+        ringBottom = (int) Math.ceil(offsetY + (RING_CY + RING_DIRTY_R) * scale);
         background = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(background);
         canvas.drawColor(BG);
@@ -339,8 +377,36 @@ final class DashboardView extends View {
 
     // ---------------------------------------------------------------- live layer
 
+    boolean isSmoothRing() {
+        return smoothRing;
+    }
+
+    /** Called on the UI thread right after each model update; starts the next ring sweep. */
+    void onModelUpdated(long now) {
+        float target = model.rpmValid ? model.rpm : 0f;
+        // A ring that appears after "--" starts at its value instead of sweeping from 0.
+        ringFrom = ringShown ? ringRpm(now) : target;
+        ringTo = target;
+        ringStart = now;
+        ringShown = model.rpmValid;
+    }
+
+    /** Repaints only the ring area; the rest of the screen keeps the 4 Hz texts. */
+    void invalidateRing() {
+        invalidate(ringLeft, ringTop, ringRight, ringBottom);
+    }
+
+    private float ringRpm(long now) {
+        long elapsed = now - ringStart;
+        if (!smoothRing || elapsed >= DashboardActivity.REFRESH_INTERVAL_MS || elapsed < 0L) {
+            return ringTo;
+        }
+        return ringFrom + (ringTo - ringFrom) * elapsed / DashboardActivity.REFRESH_INTERVAL_MS;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
+        long startNs = System.nanoTime();
         if (background == null) {
             // Re-attached with the same size: onSizeChanged will not run again.
             buildBackground(getWidth(), getHeight());
@@ -352,17 +418,78 @@ final class DashboardView extends View {
         canvas.save();
         canvas.translate(offsetX, offsetY);
         canvas.scale(scale, scale);
-        drawRpm(canvas);
+        drawRpm(canvas, SystemClock.uptimeMillis());
         drawPedalsSpeedGear(canvas);
         drawBars(canvas);
         drawBottom(canvas);
+        if (showStats) {
+            label(canvas, stats, statsLength, 780f, 54f, 12f, WARN, Paint.Align.RIGHT);
+        }
         canvas.restore();
+        if (showStats) {
+            measure(startNs, System.nanoTime());
+        }
     }
 
-    private void drawRpm(Canvas c) {
+    // Time inside onDraw only: the copy to the display happens after it and is not counted.
+    private void measure(long startNs, long endNs) {
+        long drawNs = endNs - startNs;
+        if (lastDrawNs != 0L) {
+            statsMaxGapNs = Math.max(statsMaxGapNs, startNs - lastDrawNs);
+        } else {
+            statsStartNs = startNs;
+        }
+        lastDrawNs = startNs;
+        statsFrames++;
+        statsSumNs += drawNs;
+        statsMaxNs = Math.max(statsMaxNs, drawNs);
+        long window = endNs - statsStartNs;
+        if (window < STATS_WINDOW_NS) {
+            return;
+        }
+        int n = putNumber(NumberText.formatOneDecimal(statsFrames * 1e9f / window, number), 0);
+        n = put(STATS_HZ, n);
+        n = putNumber(NumberText.formatOneDecimal((float) statsSumNs / statsFrames / NS_PER_MS,
+                number), n);
+        n = put(STATS_MS, n);
+        n = putNumber(NumberText.formatOneDecimal((float) statsMaxNs / NS_PER_MS, number), n);
+        n = put(STATS_GAP, n);
+        n = putNumber(NumberText.formatInt((float) statsMaxGapNs / NS_PER_MS, number), n);
+        n = put(STATS_RING, n);
+        float ringHz = 1000f / DashboardActivity.REFRESH_INTERVAL_MS
+                * (smoothRing ? DashboardActivity.RING_FRAMES : 1);
+        n = putNumber(NumberText.formatInt(ringHz, number), n);
+        statsLength = put(STATS_HZ_END, n);
+        statsStartNs = endNs;
+        statsFrames = 0;
+        statsSumNs = 0L;
+        statsMaxNs = 0L;
+        statsMaxGapNs = 0L;
+    }
+
+    private int put(char[] src, int at) {
+        System.arraycopy(src, 0, stats, at, src.length);
+        return at + src.length;
+    }
+
+    private int putNumber(int length, int at) {
+        System.arraycopy(number, 0, stats, at, length);
+        return at + length;
+    }
+
+    private void resetStats() {
+        lastDrawNs = 0L;
+        statsFrames = 0;
+        statsSumNs = 0L;
+        statsMaxNs = 0L;
+        statsMaxGapNs = 0L;
+        statsLength = put(NO_DATA, 0);
+    }
+
+    private void drawRpm(Canvas c, long now) {
         DashModel m = model;
         if (m.rpmValid) {
-            float frac = clamp(m.rpm / RPM_MAX, 0f, 1f);
+            float frac = clamp(ringRpm(now) / RPM_MAX, 0f, 1f);
             stroke.setStrokeWidth(16f);
             stroke.setColor(m.rpm >= RPM_RED ? DANGER : VALUE);
             if (m.rpmEstimated) {
@@ -594,29 +721,45 @@ final class DashboardView extends View {
 
     // ---------------------------------------------------------------- touch
 
-    // Holding the RPM ring for RESET_HOLD_MS clears the peaks. Leaving the ring or a
-    // cancelled gesture abandons the hold.
+    // Holding the RPM ring for RESET_HOLD_MS clears the peaks; holding the title corner
+    // shows or hides the draw stats, and a tap there while they show switches the smooth
+    // ring. Leaving the area or a cancelled gesture abandons the hold.
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 holdingRing = insideRing(event);
+                holdingTitle = insideTitle(event);
                 downTime = event.getEventTime();
                 return true;
             case MotionEvent.ACTION_MOVE:
                 if (holdingRing && !insideRing(event)) {
                     holdingRing = false;
                 }
+                if (holdingTitle && !insideTitle(event)) {
+                    holdingTitle = false;
+                }
                 return true;
             case MotionEvent.ACTION_UP:
-                if (holdingRing && insideRing(event)
-                        && event.getEventTime() - downTime >= RESET_HOLD_MS) {
+                boolean held = event.getEventTime() - downTime >= RESET_HOLD_MS;
+                if (holdingRing && insideRing(event) && held) {
                     performClick();
+                } else if (holdingTitle && insideTitle(event)) {
+                    if (held) {
+                        showStats = !showStats;
+                        resetStats();
+                    } else if (showStats) {
+                        smoothRing = !smoothRing;
+                        resetStats();
+                    }
+                    invalidate();
                 }
                 holdingRing = false;
+                holdingTitle = false;
                 return true;
             case MotionEvent.ACTION_CANCEL:
                 holdingRing = false;
+                holdingTitle = false;
                 return true;
             default:
                 return true;
@@ -627,6 +770,11 @@ final class DashboardView extends View {
         float dx = (event.getX() - offsetX) / scale - RING_CX;
         float dy = (event.getY() - offsetY) / scale - RING_CY;
         return dx * dx + dy * dy <= (RING_R + 10f) * (RING_R + 10f);
+    }
+
+    private boolean insideTitle(MotionEvent event) {
+        return (event.getX() - offsetX) / scale >= TITLE_LEFT
+                && (event.getY() - offsetY) / scale <= TITLE_BOTTOM;
     }
 
     @Override
