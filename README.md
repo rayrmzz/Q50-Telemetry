@@ -6,7 +6,7 @@ The app is **read-only**: it never writes to the CAN bus, changes vehicle settin
 
 ## What it shows
 
-One 800×480 screen, refreshed 4 times per second:
+One 800×480 screen. Values refresh 4 times per second, and the RPM ring sweeps between readings at 12 frames per second:
 
 | Area     | Signals                                                                                                                                        |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
