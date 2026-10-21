@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.q50.sensorinspector">
+
+    <uses-permission android:name="com.ygomi.permission.IVI_CAN_READ" />
+
+    <application
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:label="Q50 Sensor Inspector"
+        android:icon="@drawable/ic_launcher"
+        android:allowBackup="false">
+
+        <meta-data
+            android:name="ivi.isDistractive"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.shortcut"
+            android:value="true" />
+
+        <meta-data
+            android:name="ivi.audio"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.autorun"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.Disclaimer"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.supportDisplay"
+            android:value="ALL" />
+
+        <meta-data
+            android:name="ivi.defaultDisplay"
+            android:value="LOWER" />
+
+        <activity
+            android:name=".MainActivity"
+            android:label="Q50 Sensor Inspector"
+            android:screenOrientation="landscape"
+            android:configChanges="uiMode"
+            android:keepScreenOn="true"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>

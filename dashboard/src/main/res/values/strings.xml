@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dashboard labels. Default (English); other languages in values-xx. Units stay as is. -->
+<resources>
+    <string name="label_rpm">RPM</string>
+    <string name="label_max">MAX</string>
+    <string name="label_est">EST</string>
+    <string name="label_accelerator">ACC</string>
+    <string name="label_brake">BRK</string>
+    <string name="label_speed_unit">KM/H</string>
+    <string name="label_gear">GEAR</string>
+    <string name="label_coolant">COOLANT</string>
+    <string name="label_oil">OIL</string>
+    <string name="label_torque">TORQUE</string>
+    <string name="label_power">POWER</string>
+    <string name="label_tires">TIRES · PSI</string>
+    <string name="label_front_left">FL</string>
+    <string name="label_front_right">FR</string>
+    <string name="label_rear_left">RL</string>
+    <string name="label_rear_right">RR</string>
+    <string name="label_range">RANGE</string>
+    <string name="label_empty">E</string>
+    <string name="label_full">F</string>
+    <string name="label_g_force">G-FORCE</string>
+</resources>

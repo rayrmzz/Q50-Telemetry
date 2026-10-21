@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_rpm">TR/MIN</string>
+    <string name="label_max">MAX</string>
+    <string name="label_est">EST</string>
+    <string name="label_accelerator">ACC</string>
+    <string name="label_brake">FRE</string>
+    <string name="label_speed_unit">KM/H</string>
+    <string name="label_gear">RAPPORT</string>
+    <string name="label_coolant">LIQ. REFROID.</string>
+    <string name="label_oil">HUILE</string>
+    <string name="label_torque">COUPLE</string>
+    <string name="label_power">PUISSANCE</string>
+    <string name="label_tires">PNEUS · PSI</string>
+    <string name="label_front_left">AVG</string>
+    <string name="label_front_right">AVD</string>
+    <string name="label_rear_left">ARG</string>
+    <string name="label_rear_right">ARD</string>
+    <string name="label_range">AUTONOMIE</string>
+    <string name="label_empty">E</string>
+    <string name="label_full">F</string>
+    <string name="label_g_force">FORCE G</string>
+</resources>

@@ -1,0 +1,38 @@
+# Machine-specific paths (SDK location)
+local.properties
+
+# Signing material, keys and credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.der
+*.crt
+keystore.properties
+signing.properties
+secrets.properties
+.env
+.env.*
+
+# Build output and IDE state
+.gradle/
+build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+.idea/
+*.iml
+
+# Built and packaged apps
+*.apk
+*.aab
+*.ap_
+*.epk
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

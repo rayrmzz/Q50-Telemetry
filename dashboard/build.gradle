@@ -1,0 +1,50 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'com.q50.dashboard'
+
+    enableKotlin = false
+
+    compileSdk {
+        version = release(37)
+    }
+
+    defaultConfig {
+        applicationId "com.q50.dashboard"
+
+        minSdk {
+            version = release(10)
+        }
+
+        targetSdk {
+            version = release(10)
+        }
+
+        versionCode 2
+        versionName "1.1"
+    }
+
+    lint {
+        // targetSdk 10 is required by the InTouch; the Play Store target rule does not apply.
+        disable 'ExpiredTargetSdkVersion'
+    }
+
+    buildTypes {
+        release {
+            optimization {
+                enable false
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation project(':core')
+}

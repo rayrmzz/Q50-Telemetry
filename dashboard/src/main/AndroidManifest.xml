@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.q50.dashboard">
+
+    <uses-permission android:name="com.ygomi.permission.IVI_CAN_READ" />
+
+    <application
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:label="Q50 Telemetry"
+        android:icon="@drawable/ic_launcher"
+        android:allowBackup="false">
+
+        <meta-data
+            android:name="ivi.isDistractive"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.shortcut"
+            android:value="true" />
+
+        <meta-data
+            android:name="ivi.audio"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.autorun"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.Disclaimer"
+            android:value="false" />
+
+        <meta-data
+            android:name="ivi.supportDisplay"
+            android:value="ALL" />
+
+        <meta-data
+            android:name="ivi.defaultDisplay"
+            android:value="LOWER" />
+
+        <!-- Label and icon on the launcher activity too, as every app that App Garage
+             lists for installation declares them. -->
+        <activity
+            android:name=".DashboardActivity"
+            android:label="Q50 Telemetry"
+            android:icon="@drawable/ic_launcher"
+            android:screenOrientation="landscape"
+            android:configChanges="uiMode"
+            android:keepScreenOn="true"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>
