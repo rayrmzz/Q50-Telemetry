@@ -37,6 +37,8 @@ final class DashboardView extends View {
     private static final int DANGER = 0xFFFF3D4D;
     private static final int REDZONE = 0xFF5A1E25;
     private static final int EST_ALPHA = 140;
+    // Held values (last samples kept after a resume) are veiled by the static layer itself.
+    private static final int HELD_VEIL_ALPHA = 150;
 
     // RPM ring: 0..8000 over 270 degrees from 135, redline 7500 (VQ37VHR).
     private static final float RING_CX = 168f;
@@ -95,6 +97,7 @@ final class DashboardView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint veil = new Paint();
     private final RectF ringOval = new RectF(RING_CX - RING_R, RING_CY - RING_R,
             RING_CX + RING_R, RING_CY + RING_R);
     private final RectF estBox = new RectF(148f, 250f, 188f, 268f);
@@ -179,6 +182,7 @@ final class DashboardView extends View {
             face = Typeface.DEFAULT_BOLD;
         }
         text.setTypeface(face);
+        veil.setAlpha(HELD_VEIL_ALPHA);
         fill.setStyle(Paint.Style.FILL);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.BUTT);
@@ -422,10 +426,18 @@ final class DashboardView extends View {
         drawPedalsSpeedGear(canvas);
         drawBars(canvas);
         drawBottom(canvas);
-        if (showStats) {
-            label(canvas, stats, statsLength, 780f, 54f, 12f, WARN, Paint.Align.RIGHT);
-        }
         canvas.restore();
+        if (model.held) {
+            // Static pixels blend with themselves; only the live values fade toward it.
+            canvas.drawBitmap(background, 0f, 0f, veil);
+        }
+        if (showStats) {
+            canvas.save();
+            canvas.translate(offsetX, offsetY);
+            canvas.scale(scale, scale);
+            label(canvas, stats, statsLength, 780f, 54f, 12f, WARN, Paint.Align.RIGHT);
+            canvas.restore();
+        }
         if (showStats) {
             measure(startNs, System.nanoTime());
         }

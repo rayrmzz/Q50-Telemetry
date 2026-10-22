@@ -20,6 +20,11 @@ public class DashboardActivity extends Activity {
     static final long REFRESH_INTERVAL_MS = 250L;
     // Ring-only frames per refresh when the smooth ring is on: 3 -> 12 Hz.
     static final int RING_FRAMES = 3;
+    // The InTouch can pause the app for a moment when it takes the screen. Sensors stay
+    // registered this long after onPause, and after onResume the last values stay on screen
+    // (dimmed) this long while fresh events catch up, instead of turning into "--".
+    static final long STOP_DELAY_MS = 5000L;
+    static final long RESUME_HOLD_MS = 3000L;
 
     private final SensorState sensorState = new SensorState();
     private final SensorState.Snapshot[] snapshots = SensorState.newSnapshots();
@@ -33,6 +38,7 @@ public class DashboardActivity extends Activity {
     // Start of the current refresh period and the frame within it (0 = full refresh).
     private long refreshAt;
     private int frame;
+    private long holdUntil;
 
     private final Runnable refreshTask = new Runnable() {
         @Override
@@ -44,7 +50,7 @@ public class DashboardActivity extends Activity {
             if (frame == 0) {
                 copiedVersion = sensorState.copyInto(snapshots, derivedRpm, copiedVersion);
                 // Update even without new events so stale readings turn into "--".
-                model.update(snapshots, derivedRpm, SystemClock.elapsedRealtime());
+                model.update(snapshots, derivedRpm, SystemClock.elapsedRealtime(), holdUntil);
                 dashboardView.onModelUpdated(now);
                 dashboardView.invalidate();
             } else {
@@ -81,6 +87,7 @@ public class DashboardActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        holdUntil = SystemClock.elapsedRealtime() + RESUME_HOLD_MS;
         sensorCapture.start();
         uiHandler.removeCallbacks(refreshTask);
         frame = 0;
@@ -92,7 +99,7 @@ public class DashboardActivity extends Activity {
     protected void onPause() {
         resumed = false;
         uiHandler.removeCallbacks(refreshTask);
-        sensorCapture.stop();
+        sensorCapture.stopAfter(STOP_DELAY_MS);
         super.onPause();
     }
 

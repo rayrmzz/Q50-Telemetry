@@ -22,6 +22,12 @@ public final class SensorCapture implements SensorEventListener {
     private final Handler handler;
     private boolean active; // Accessed only on the capture looper.
     private boolean closed; // Accessed only by the Activity on the main looper.
+    private final Runnable stopTask = new Runnable() {
+        @Override
+        public void run() {
+            stopOnCaptureThread();
+        }
+    };
 
     public SensorCapture(SensorManager sensorManager, SensorState state) {
         this.sensorManager = sensorManager;
@@ -52,6 +58,8 @@ public final class SensorCapture implements SensorEventListener {
         if (closed) {
             return;
         }
+        // A resume inside the stopAfter() window keeps the registration it never lost.
+        handler.removeCallbacks(stopTask);
         handler.post(new Runnable() {
             @Override
             public void run() {
@@ -81,15 +89,19 @@ public final class SensorCapture implements SensorEventListener {
     }
 
     public void stop() {
+        stopAfter(0L);
+    }
+
+    /**
+     * Unregisters after delayMs unless start() comes first. A short system pause then never
+     * leaves the HAL without listeners, where its poll loop sleeps a full second per pass.
+     */
+    public void stopAfter(long delayMs) {
         if (closed) {
             return;
         }
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                stopOnCaptureThread();
-            }
-        });
+        handler.removeCallbacks(stopTask);
+        handler.postDelayed(stopTask, delayMs);
     }
 
     public void close() {
@@ -97,6 +109,7 @@ public final class SensorCapture implements SensorEventListener {
             return;
         }
         closed = true;
+        handler.removeCallbacks(stopTask);
         handler.post(new Runnable() {
             @Override
             public void run() {
